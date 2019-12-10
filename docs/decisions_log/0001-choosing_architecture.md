@@ -1,7 +1,11 @@
-# eCar charge pricing 
-eCar company is going to introduce new way pricing in their new, successful backoffice supporting electric vehicles charging network.   
-  
-## Requirements  
+# Choosing high level architecture for the eCar charge pricing system
+
+* Status: accepted
+* Deciders: Kirill Nizamov
+* Date: 2019-12-10
+
+## Context and Problem Statement
+eCar company is going to introduce new way pricing in their new, successful backoffice supporting electric vehicles charging network.     
 * Ability to define and calculate a price via API.    
 * A price definition will contain price per minute and can be defined for specific duration, e.g. one price before noon and different one afternoon   
 * A calculation input will contain start and end datetime of charging process and customer id   
@@ -9,45 +13,30 @@ eCar company is going to introduce new way pricing in their new, successful back
 * A solution should be provided in a zip file or as a link to git repository   
 * An application should be able to be launched from command line with single command like "java –jar...."   
 * A solution should require no additional software to be installed except for JRE 8  
-  
-## Analysis  
-We're gonna follow Jakub Nabrdalik's advice and recommendations  
-so we're gonna start with gathering the requirements. We're already given  
-some basic premise of the applications and the description of what it is supposed to do.  
-  
-So let's try to formalize it a bit more with BDD scenarios 
-and some other techniques to validate that we actually understand the problem   
-and know how it's supposed to work, probably refining the whole process with the customer.
 
-Here is a  [link](https://docs.google.com/document/d/1tG-fLnFY5s2s_8WMBccpL69KHs7lssSmF07RrqgJixI/edit?usp=sharing)
+We have to design and choose an architecture for the new eCar charge pricing system.
+The scope is limited to the charge pricing domain only.
+
+Here is a [link](https://docs.google.com/document/d/1tG-fLnFY5s2s_8WMBccpL69KHs7lssSmF07RrqgJixI/edit?usp=sharing)
 I sent to the customer to some analysis in the form of BDD scenarios (some are probably missing and 
 some require validation from the customer) and some questions I wanted to discuss, verify and 
 validate with the customer. But I was told to do it based on my own assumptions.
 
-### Acceptance scenario  
-  
-1. Given there is a price definition of **1.00$** per minute for **00:00-7:00** 
-and **2.00$** for **7:00-14:00** and **3.00$** for **14:00-24:00** time period as of **31.01.2019** 
-and another price definition of **0.50$** as of **01.02.2019**
-2. And I’m a VIP customer
-3. When I calculate possible charging costs for **31.01.2019 12:00 - 02.02.2019 1:30** period 
-4. Then it estimates **2524.5$** for the specified period \
-(12:00-14:00 2h * 60m * **2$**) + (14:00-24:00 10h * 60m * **3$**) = 2040$ for 31.01.2019 \
-(00:00-24:00 24h * 60m * **0.50$**) = 720$ for 01.02.2019 \
-(00:00-1:30 1.5h * 60m * **0.50$**) = 45$ for 02.02.2019 \
-= 2805$ discounted by 10% = 2524.5
-5. When I really start my charging session at **31.01.2019 12:00** and finish at **02.02.2019 01:30**
-6. And in the meantime there is a new price definition of **10.00$** per minute added as of **02.02.2019**
-7. When my charging costs are calculated 
-8. Then they are equal to **3294$** (2040+720+**900** discounted by 10%)
+## Decision Drivers
 
-### Assumptions
+* ambiguity of business requirements, assumptions and vectors of changes 
+* testability
+* maintainability 
 
-*
+## Considered Options
 
-## Architecture
-After gathering, refining and validating the requirements and scenarios,
-lets try to design an appropriate architecture for the **Charge Pricing** domain.
+* [Single Charge Pricing module](#1-single-charge-pricing-module)
+* [Prices and Charging Costs modules (Charging Costs knows about the price definition structure)](#2-prices-and-charging-costs-modules-charging-costs-knows-about-the-price-definition-structure)
+* [Prices and Charging Costs modules (Charging Costs knows only the total cost/price rate for period)](#3-prices-and-charging-costs-modules-charging-costs-knows-only-the-total-costprice-rate-for-period)
+
+## Pros and Cons of the Options
+
+Before diving into each option, let's setup common assumptions.
 
 The actors of the system are probably going to stay stable (or more stable) across all the architectures:
 * **Customer** that has an electric vehicle and needs to charge it and know charging costs
@@ -65,7 +54,7 @@ the internal relationship and communication between **Prices** and **Charging Co
 so different architectural options are what we are going to consider next.
 
 ### 1. Single Charge Pricing module
-![option 1](docs/diagrams/architecture_option_1.png)
+![option 1](../diagrams/architecture_option_1.png)
 This architecture represents a single module for Charge Pricing
 that calculates charging costs with managed price definitions.
 
@@ -98,7 +87,7 @@ But of course we have to keep an eye on this architecture not to create a Big Ba
     * having one bigger module is more prone to being neglected and turning into a BBOM
 
 ### 2. Prices and Charging Costs modules (Charging Costs knows about the price definition structure)
-![option 2](docs/diagrams/architecture_option_2.png)
+![option 2](../diagrams/architecture_option_2.png)
 
 This architecture splits **Charge Pricing** domain into two modules.
 * **Prices** module manages price definitions for charging defined by **Price Manager**
@@ -122,7 +111,7 @@ but I'm not sure if promoting it to the level of high level architecture is just
     * bigger structural changes in application code and tests needed if we get the boundaries wrong
 
 ### 3. Prices and Charging Costs modules (Charging Costs knows only the total cost/price rate for period)
-![option3](docs/diagrams/architecture_option_3.png)
+![option 3](../diagrams/architecture_option_3.png)
 
 The only difference compared to the [option 2](#2-prices-and-charging-costs-modules-charging-costs-knows-about-the-price-definition-structure) 
 is instead of **Charging Costs** knowing price definitions, it asks only for total costs (or total price rate) for the given period. 
@@ -142,13 +131,12 @@ but I'm now sure how feasible that is.
     * all the cons of [option 2](#2-prices-and-charging-costs-modules-charging-costs-knows-about-the-price-definition-structure)
     * the scope of communication with **Prices** may be too limiting
     
-### Decision on the architecture
+## Decision Outcome
 Given aforementioned options and their pros and cons, we are going to choose 
 [Single Charge Pricing module](#1-single-charge-pricing-module) as a counteract to somewhat ambiguous
 future business requirements and assumptions (or maybe I'm just missing something and my reasoning is totally flawed in which case I'm sorry).
 This option seems the most simplistic while allowing to more easily adopt to future changes without
 committing to hard boundaries on things that are likely to change or that are uncertain (especially given the nature of the new system).
 
-The decision is also recorded in the form of [ADR-0001](docs/decisions_log/0001-choosing_architecture.md) (basically copied from here)
-
- 
+## Links
+* [BDD scenarios and questions discussion](https://docs.google.com/document/d/1tG-fLnFY5s2s_8WMBccpL69KHs7lssSmF07RrqgJixI/edit?usp=sharing)
