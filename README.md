@@ -19,7 +19,7 @@ So let's try to formalize it a bit more with BDD scenarios
 and some other techniques to validate that we actually understand the problem   
 and know how it's supposed to work, probably refining the whole process with the customer.
 
-Here is a  [link](https://docs.google.com/document/d/1tG-fLnFY5s2s_8WMBccpL69KHs7lssSmF07RrqgJixI/edit?usp=sharing)
+Here is a [link](https://docs.google.com/document/d/1tG-fLnFY5s2s_8WMBccpL69KHs7lssSmF07RrqgJixI/edit?usp=sharing)
 I sent to the customer to some analysis in the form of BDD scenarios (some are probably missing and 
 some require validation from the customer) and some questions I wanted to discuss, verify and 
 validate with the customer. But I was told to do it based on my own assumptions.
@@ -43,7 +43,17 @@ and another price definition of **0.50$** as of **01.02.2019**
 
 ### Assumptions
 
-*
+* Charging costs are calculated according to last known prices
+    * could be mitigated by remembering price definitions when the charging session starts 
+    and using them later when the charging session is finished. 
+    Also some kind of price lifecycle could be considered (like draft and published prices)
+* Charging costs calculation has precession of seconds
+* Price definition asOf date is considered to be in UTC timezone and charging session period is also shifted to UTC
+* Prices are considered to be in dollars
+    * could be mitigated by introducing Java Money Api
+
+Other assumptions can be found in the tests **ChargePricingSpec** 
+(the test names are phrased as a statement, thus assumption)
 
 ## Architecture
 After gathering, refining and validating the requirements and scenarios,
@@ -151,4 +161,53 @@ committing to hard boundaries on things that are likely to change or that are un
 
 The decision is also recorded in the form of [ADR-0001](docs/decisions_log/0001-choosing_architecture.md) (basically copied from here)
 
- 
+## HTTP API
+
+* **Add a new price definition:**
+```json
+POST /price-definitions
+
+{
+  "asOf": "2019-01-01",
+  "pricePerMinute": "1.00",
+  "timeInterval": null
+}
+```
+
+```json
+POST /price-definitions
+
+{
+  "asOf": "2019-01-01",
+  "pricePerMinute": "2.00",
+  "timeInterval": {"start": "12:00", "end": "23:59:59.999999999"}
+}
+```
+For end of the day (24:00) the value should be sent as `23:59:59.999999999`
+
+If the price definition for the given asOf date didn't exist before,
+it will be created and the pricePerMinute becomes a default for unspecified intervals.
+
+
+* **Calculate charging costs for a charging session:**
+```
+GET /charging-costs/calculate?customerId={customerId}&start={start}&end={end}
+```
+Query params:
+* **customerId** is any string, e.g. `regular` or `vip` 
+(for the task purposes any id containing `vip` will be considered as a VIP customer
+any id containing `regular` will be considered a regular one)
+* **start** is an ISO 8601 start date of the charging session, e.g. `2019-01-01T00:00:00Z`
+* **end** is an ISO 8601 end date of the charging session, e.g. `2019-01-02T00:00:00Z`
+
+## Build and Run
+
+To build the app, run the following command in the root directory:
+```
+./gradlew bootJar
+```
+
+Then to run the app, run the following (the app will be up and running on port 8080) 
+```
+java -jar build/libs/ecar-0.0.1-SNAPSHOT.jar 
+```
